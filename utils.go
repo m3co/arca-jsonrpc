@@ -47,7 +47,12 @@ func getFieldFromContext(
 	field string, context interface{}) (ctx string, err error) {
 	switch context.(type) {
 	case map[string]interface{}:
-		ctx = context.(map[string]interface{})[field].(string)
+		value := context.(map[string]interface{})[field]
+		if value != nil {
+			ctx = value.(string)
+		} else {
+			err = fmt.Errorf("Incorrect context %v", context)
+		}
 	case string:
 		ctx = context.(string)
 	default:
