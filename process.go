@@ -9,7 +9,7 @@ import (
 
 // ProcessNotification whatever
 func (s *Server) ProcessNotification(
-	request *Request, db *sql.DB) {
+	request *Request, db *sql.DB) error {
 	base := Base{
 		ID:      request.ID,
 		Method:  request.Method,
@@ -18,7 +18,7 @@ func (s *Server) ProcessNotification(
 
 	ctx, err := getFieldFromContext("Target", request.Context)
 	if err != nil {
-		return
+		return err
 	}
 
 	response, err := s.findAndExecuteHandlerInTarget(ctx, request, &base, db)
@@ -26,6 +26,7 @@ func (s *Server) ProcessNotification(
 		msg, _ := json.Marshal(response)
 		s.Broadcast(msg)
 	}
+	return err
 }
 
 // ProcessRequest takes a request and a conn, and depending on the request it
@@ -56,14 +57,26 @@ func (s *Server) ProcessRequest(
 
 	response, err := s.findAndExecuteHandlerInSource(ctx, request, &base)
 	if err != nil {
-		(*s).sendError(conn, &Error{
-			Message: "Method not found",
-			Code:    -32700,
-			Data: map[string]string{
-				"Method": request.Method,
-				"ID":     request.ID,
-			},
-		})
+		if err == errMethodNotMatch {
+			(*s).sendError(conn, &Error{
+				Message: "Method not found",
+				Code:    -32700,
+				Data: map[string]string{
+					"Method": request.Method,
+					"ID":     request.ID,
+				},
+			})
+		} else {
+			(*s).sendError(conn, &Error{
+				Message: "Internal error",
+				Code:    -32603,
+				Data: map[string]string{
+					"Error":  fmt.Sprint(err),
+					"Method": request.Method,
+					"ID":     request.ID,
+				},
+			})
+		}
 	} else if response != nil {
 		(*s).send(conn, response)
 	}

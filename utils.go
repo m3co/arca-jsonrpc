@@ -8,6 +8,8 @@ import (
 	"net"
 )
 
+var errMethodNotMatch = errors.New("Method not found")
+
 // write sends the given message thorugh the given conn
 func write(conn *net.Conn, msg []byte) {
 	(*conn).Write(msg)
@@ -70,19 +72,19 @@ func (s *Server) findAndExecuteHandlerInTarget(
 	if s.registersTarget[ctx] != nil {
 		found := s.registersTarget[ctx][request.Method]
 		if found != nil {
-			result := found(db)(request)
+			result, err := found(db)(request)
 
 			if result != nil {
 				response := Response{
 					Base:   *base,
 					Result: result,
 				}
-				return &response, nil
+				return &response, err
 			}
-			return nil, nil
+			return nil, err
 		}
 	}
-	return nil, errors.New("not match")
+	return nil, errMethodNotMatch
 }
 
 // findAndExecuteHandlerInSource finds and executes the respective handler
@@ -94,17 +96,17 @@ func (s *Server) findAndExecuteHandlerInSource(
 	if s.registersSource[ctx] != nil {
 		found := s.registersSource[ctx][request.Method]
 		if found != nil {
-			result := found(request)
+			result, err := found(request)
 
 			if result != nil {
 				response := Response{
 					Base:   *base,
 					Result: result,
 				}
-				return &response, nil
+				return &response, err
 			}
-			return nil, nil
+			return nil, err
 		}
 	}
-	return nil, errors.New("not match")
+	return nil, errMethodNotMatch
 }

@@ -243,7 +243,7 @@ func Test_Serve_Register_One_Ctx_One_Method__OK(t *testing.T) {
 	ready := make(chan bool)
 
 	pang :=
-		func(request *Request) (result *interface{}) {
+		func(request *Request) (result interface{}, err error) {
 			var pong interface{} = "Pung"
 			result = &pong
 			return
@@ -299,14 +299,14 @@ func Test_Serve_Register_One_Ctx_Two_Methods__OK(t *testing.T) {
 	ready := make(chan bool)
 
 	ping :=
-		func(request *Request) (result *interface{}) {
+		func(request *Request) (result interface{}, err error) {
 			var pong interface{} = "Pong"
 			result = &pong
 			return
 		}
 
 	pang :=
-		func(request *Request) (result *interface{}) {
+		func(request *Request) (result interface{}, err error) {
 			var pong interface{} = "Pung"
 			result = &pong
 			return
@@ -387,7 +387,7 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method__OK(t *testing.T) {
 	ready := make(chan bool)
 
 	pang :=
-		func(request *Request) (result *interface{}) {
+		func(request *Request) (result interface{}, err error) {
 			var pong interface{} = "Pung"
 			result = &pong
 			return
@@ -445,14 +445,14 @@ func Test_Serve_Register_One_Complex_Ctx_Two_Methods__OK(t *testing.T) {
 	ready := make(chan bool)
 
 	ping :=
-		func(request *Request) (result *interface{}) {
+		func(request *Request) (result interface{}, err error) {
 			var pong interface{} = "Pong"
 			result = &pong
 			return
 		}
 
 	pang :=
-		func(request *Request) (result *interface{}) {
+		func(request *Request) (result interface{}, err error) {
 			var pong interface{} = "Pung"
 			result = &pong
 			return
@@ -579,7 +579,7 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__OK(t *t
 	ready := make(chan bool)
 
 	var ping DBRemoteProcedure = func(db *sql.DB) RemoteProcedure {
-		return func(request *Request) (result *interface{}) {
+		return func(request *Request) (result interface{}, err error) {
 			var pong interface{} = "Pong"
 			result = &pong
 			return

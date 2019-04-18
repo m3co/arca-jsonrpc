@@ -34,7 +34,7 @@ type Response struct {
 
 // RemoteProcedure represents the function-handler that matches a given request
 //   TODO: allows to return an error!
-type RemoteProcedure func(request *Request) (result *interface{})
+type RemoteProcedure func(request *Request) (result interface{}, err error)
 
 // DBRemoteProcedure represents the function-handler that goes through the
 // db pool and executes the RemoteProcedure
