@@ -68,11 +68,21 @@ func getFieldFromContext(
 func (s *Server) findAndExecuteHandlerInTarget(
 	ctx string,
 	request *Request, base *Base, db *sql.DB) (*Response, error) {
+	var result interface{}
+	var err error
 
 	if s.registersTarget[ctx] != nil {
 		found := s.registersTarget[ctx][request.Method]
+
 		if found != nil {
-			result, err := found(db)(request)
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						err = fmt.Errorf("%v", r)
+					}
+				}()
+				result, err = found(db)(request)
+			}()
 
 			if result != nil {
 				response := Response{
@@ -92,11 +102,21 @@ func (s *Server) findAndExecuteHandlerInTarget(
 func (s *Server) findAndExecuteHandlerInSource(
 	ctx string,
 	request *Request, base *Base) (*Response, error) {
+	var result interface{}
+	var err error
 
 	if s.registersSource[ctx] != nil {
 		found := s.registersSource[ctx][request.Method]
+
 		if found != nil {
-			result, err := found(request)
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						err = fmt.Errorf("%v", r)
+					}
+				}()
+				result, err = found(request)
+			}()
 
 			if result != nil {
 				response := Response{
