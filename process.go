@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 )
 
@@ -43,6 +44,7 @@ func (s *Server) ProcessRequest(
 
 	ctx, err := getFieldFromContext("Source", request.Context)
 	if err != nil {
+		log.Println("ProcessRequest", err)
 		(*s).sendError(conn, &Error{
 			Message: "Invalid Request",
 			Code:    -32600,
@@ -57,6 +59,7 @@ func (s *Server) ProcessRequest(
 
 	response, err := s.findAndExecuteHandlerInSource(ctx, request, &base)
 	if err != nil {
+		log.Println("ProcessRequest", err)
 		if err == errMethodNotMatch {
 			(*s).sendError(conn, &Error{
 				Message: "Method not found",
