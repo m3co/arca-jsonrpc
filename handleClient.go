@@ -45,6 +45,9 @@ func (s *Server) handleClient(conn *net.Conn) {
 	scanner := bufio.NewScanner(*conn)
 	for scanner.Scan() {
 		raw := scanner.Bytes()
+		if len(raw) == 0 {
+			continue
+		}
 		var request Request
 
 		if err := json.Unmarshal(raw, &request); err != nil {
