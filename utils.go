@@ -11,7 +11,9 @@ import (
 var errMethodNotMatch = errors.New("Method not found")
 
 // write sends the given message thorugh the given conn
-func write(conn *net.Conn, msg []byte) {
+func (s *Server) write(conn *net.Conn, msg []byte) {
+	s.blocker.Lock()
+	defer s.blocker.Unlock()
 	(*conn).Write(msg)
 	(*conn).Write([]byte("\n"))
 }
@@ -19,13 +21,13 @@ func write(conn *net.Conn, msg []byte) {
 // send takes a JSON-RPC response and sends it thorugh the given conn
 func (s *Server) send(conn *net.Conn, response *Response) {
 	msg, _ := json.Marshal(response)
-	write(conn, msg)
+	s.write(conn, msg)
 }
 
 // send takes a JSON-RPC error and sends it thorugh the given conn
 func (s *Server) sendError(conn *net.Conn, response *Error) {
 	msg, _ := json.Marshal(response)
-	write(conn, msg)
+	s.write(conn, msg)
 }
 
 // plug appends a conn in the array of connections. Necessary for broadcasting

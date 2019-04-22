@@ -14,7 +14,7 @@ func (s *Server) Close() {
 // Broadcast sends to all the active connections the given message
 func (s *Server) Broadcast(msg []byte) {
 	for _, conn := range s.conns {
-		write(conn, msg)
+		s.write(conn, msg)
 	}
 }
 
@@ -25,6 +25,7 @@ func (s *Server) Start(ready *chan bool) (err error) {
 		return err
 	}
 
+	s.blocker = &sync.Mutex{}
 	s.close = make(chan bool)
 	s.conns = make([]*net.Conn, 0)
 	s.listen = &listen

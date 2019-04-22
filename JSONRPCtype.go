@@ -3,6 +3,7 @@ package jsonrpc
 import (
 	"database/sql"
 	"net"
+	"sync"
 )
 
 // Base is the base for both request and response structures
@@ -43,6 +44,7 @@ type DBRemoteProcedure func(db *sql.DB) RemoteProcedure
 // Server represents the arca-jsonrpc server
 type Server struct {
 	Address         string
+	blocker         *sync.Mutex
 	close           chan bool
 	conns           []*net.Conn
 	listen          *net.Listener
