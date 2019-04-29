@@ -12,8 +12,8 @@ var errMethodNotMatch = errors.New("Method not found")
 
 // write sends the given message thorugh the given conn
 func (s *Server) write(conn *net.Conn, msg []byte) {
-	s.blocker.Lock()
-	defer s.blocker.Unlock()
+	s.writeBlocker.Lock()
+	defer s.writeBlocker.Unlock()
 	(*conn).Write(msg)
 	(*conn).Write([]byte("\n"))
 }
@@ -32,11 +32,15 @@ func (s *Server) sendError(conn *net.Conn, response *Error) {
 
 // plug appends a conn in the array of connections. Necessary for broadcasting
 func (s *Server) plug(conn *net.Conn) {
+	s.plugBlocker.Lock()
+	defer s.plugBlocker.Unlock()
 	s.conns = append(s.conns, conn)
 }
 
 // unplug drops a conn in the array of connections. Necessary for broadcasting
 func (s *Server) unplug(conn *net.Conn) {
+	s.plugBlocker.Lock()
+	defer s.plugBlocker.Unlock()
 	for i, value := range s.conns {
 		if value == conn {
 			s.conns[i] = s.conns[len(s.conns)-1]

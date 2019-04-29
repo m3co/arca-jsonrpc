@@ -8,7 +8,7 @@ import (
 // Close takes the listen and close channel and closes them
 func (s *Server) Close() {
 	(*s.listen).Close()
-	s.close <- true
+	s.closeBlocker.Unlock()
 }
 
 // Broadcast sends to all the active connections the given message
@@ -25,36 +25,29 @@ func (s *Server) Start(ready *chan bool) (err error) {
 		return err
 	}
 
-	s.blocker = &sync.Mutex{}
-	s.close = make(chan bool)
+	s.plugBlocker = &sync.Mutex{}
+	s.writeBlocker = &sync.Mutex{}
+	s.closeBlocker = &sync.Mutex{}
 	s.conns = make([]*net.Conn, 0)
 	s.listen = &listen
 	s.registersSource = make(map[string]map[string]RemoteProcedure)
 	s.registersTarget = make(map[string]map[string]DBRemoteProcedure)
 
 	go (func() {
-		var wait sync.WaitGroup
 		for {
 			conn, err := listen.Accept()
 			if err != nil {
 				return
 			}
-			wait.Wait()
-			wait.Add(1)
 			s.plug(&conn)
-			wait.Done()
 			go (func(conn *net.Conn) {
 				s.handleClient(conn)
-				wait.Wait()
-				wait.Add(1)
 				s.unplug(conn)
-				wait.Done()
 			})(&conn)
 		}
 	})()
 
 	*ready <- true
-	<-s.close
-	defer s.Close()
+	s.closeBlocker.Lock()
 	return nil
 }

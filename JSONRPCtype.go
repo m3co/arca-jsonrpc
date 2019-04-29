@@ -44,8 +44,9 @@ type DBRemoteProcedure func(db *sql.DB) RemoteProcedure
 // Server represents the arca-jsonrpc server
 type Server struct {
 	Address         string
-	blocker         *sync.Mutex
-	close           chan bool
+	plugBlocker     *sync.Mutex
+	writeBlocker    *sync.Mutex
+	closeBlocker    *sync.Mutex
 	conns           []*net.Conn
 	listen          *net.Listener
 	registersSource map[string]map[string]RemoteProcedure
