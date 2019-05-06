@@ -2,7 +2,6 @@ package jsonrpc
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -10,8 +9,7 @@ import (
 
 // ProcessNotification whatever
 func (s *Server) ProcessNotification(
-	request *Request, db *sql.DB) error {
-	var msg []byte
+	request *Request, db *sql.DB) (interface{}, error) {
 	base := Base{
 		ID:      request.ID,
 		Method:  request.Method,
@@ -20,12 +18,12 @@ func (s *Server) ProcessNotification(
 
 	ctx, err := getFieldFromContext("Target", request.Context)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	response, err := s.findAndExecuteHandlerInTarget(ctx, request, &base, db)
 	if err != nil {
-		msg, _ = json.Marshal(&Error{
+		return &Error{
 			Message: "Internal error",
 			Code:    -32603,
 			Data: map[string]string{
@@ -33,12 +31,9 @@ func (s *Server) ProcessNotification(
 				"Method": request.Method,
 				"ID":     request.ID,
 			},
-		})
-	} else if response != nil {
-		msg, _ = json.Marshal(response)
+		}, err
 	}
-	s.Broadcast(msg)
-	return err
+	return response, err
 }
 
 // ProcessRequest takes a request and a conn, and depending on the request it
