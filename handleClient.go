@@ -53,7 +53,8 @@ func (s *Server) handleClient(conn *net.Conn) {
 
 		if err := json.Unmarshal(raw, &request); err != nil {
 			log.Println("handleClient", err)
-			(*s).sendError(conn, &Error{
+			base := &Base{}
+			(*s).sendError(conn, base, &Error{
 				Message: "Parse error",
 				Code:    -32700,
 				Data:    fmt.Sprint(err),

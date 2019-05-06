@@ -9,8 +9,8 @@ import (
 
 // ProcessNotification whatever
 func (s *Server) ProcessNotification(
-	request *Request, db *sql.DB) (interface{}, error) {
-	base := Base{
+	request *Request, db *sql.DB) {
+	base := &Base{
 		ID:      request.ID,
 		Method:  request.Method,
 		Context: request.Context,
@@ -18,12 +18,7 @@ func (s *Server) ProcessNotification(
 
 	ctx, err := getFieldFromContext("Target", request.Context)
 	if err != nil {
-		return nil, err
-	}
-
-	response, err := s.findAndExecuteHandlerInTarget(ctx, request, &base, db)
-	if err != nil {
-		return &Error{
+		s.BroadcastError(base, &Error{
 			Message: "Internal error",
 			Code:    -32603,
 			Data: map[string]string{
@@ -31,9 +26,21 @@ func (s *Server) ProcessNotification(
 				"Method": request.Method,
 				"ID":     request.ID,
 			},
-		}, err
+		})
 	}
-	return response, err
+
+	_, err = s.findAndExecuteHandlerInTarget(ctx, request, base, db)
+	if err != nil {
+		s.BroadcastError(base, &Error{
+			Message: "Internal error",
+			Code:    -32603,
+			Data: map[string]string{
+				"Error":  fmt.Sprint(err),
+				"Method": request.Method,
+				"ID":     request.ID,
+			},
+		})
+	}
 }
 
 // ProcessRequest takes a request and a conn, and depending on the request it
@@ -42,7 +49,7 @@ func (s *Server) ProcessNotification(
 func (s *Server) ProcessRequest(
 	request *Request, conn *net.Conn) {
 
-	base := Base{
+	base := &Base{
 		ID:      request.ID,
 		Method:  request.Method,
 		Context: request.Context,
@@ -51,7 +58,7 @@ func (s *Server) ProcessRequest(
 	ctx, err := getFieldFromContext("Source", request.Context)
 	if err != nil {
 		log.Println("ProcessRequest", err)
-		(*s).sendError(conn, &Error{
+		s.sendError(conn, base, &Error{
 			Message: "Invalid Request",
 			Code:    -32600,
 			Data: map[string]string{
@@ -63,11 +70,11 @@ func (s *Server) ProcessRequest(
 		return
 	}
 
-	response, err := s.findAndExecuteHandlerInSource(ctx, request, &base)
+	response, err := s.findAndExecuteHandlerInSource(ctx, request, base)
 	if err != nil {
 		log.Println("ProcessRequest", err)
 		if err == errMethodNotMatch {
-			(*s).sendError(conn, &Error{
+			s.sendError(conn, base, &Error{
 				Message: "Method not found",
 				Code:    -32700,
 				Data: map[string]string{
@@ -76,7 +83,7 @@ func (s *Server) ProcessRequest(
 				},
 			})
 		} else {
-			(*s).sendError(conn, &Error{
+			s.sendError(conn, base, &Error{
 				Message: "Internal error",
 				Code:    -32603,
 				Data: map[string]string{
@@ -87,6 +94,6 @@ func (s *Server) ProcessRequest(
 			})
 		}
 	} else if response != nil {
-		(*s).send(conn, response)
+		s.send(conn, response)
 	}
 }
