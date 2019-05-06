@@ -55,7 +55,11 @@ func (s *Server) ProcessRequest(
 		Context: request.Context,
 	}
 
-	ctx, err := getFieldFromContext("Source", request.Context)
+	src := "Source"
+	if conn == nil {
+		src = "Target"
+	}
+	ctx, err := getFieldFromContext(src, request.Context)
 	if err != nil {
 		log.Println("ProcessRequest", err)
 		s.sendError(conn, base, &Error{
