@@ -18,6 +18,13 @@ func (s *Server) Broadcast(msg []byte) {
 	}
 }
 
+// BroadcastError takes a JSON-RPC error and sends it to all connections
+func (s *Server) BroadcastError(base *Base, response *Error) {
+	for _, conn := range s.conns {
+		s.sendError(conn, base, response)
+	}
+}
+
 // Start prepares and launches the json-rpc server
 func (s *Server) Start(ready *chan bool) (err error) {
 	listen, err := net.Listen("tcp", s.Address)

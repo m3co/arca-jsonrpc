@@ -34,13 +34,6 @@ func (s *Server) sendError(conn *net.Conn, base *Base, err *Error) {
 	s.write(conn, msg)
 }
 
-// BroadcastError takes a JSON-RPC error and sends it to all connections
-func (s *Server) BroadcastError(base *Base, response *Error) {
-	for _, conn := range s.conns {
-		s.sendError(conn, base, response)
-	}
-}
-
 // plug appends a conn in the array of connections. Necessary for broadcasting
 func (s *Server) plug(conn *net.Conn) {
 	s.plugBlocker.Lock()
