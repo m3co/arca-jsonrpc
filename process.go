@@ -11,6 +11,7 @@ import (
 // ProcessNotification whatever
 func (s *Server) ProcessNotification(
 	request *Request, db *sql.DB) error {
+	var msg []byte
 	base := Base{
 		ID:      request.ID,
 		Method:  request.Method,
@@ -23,10 +24,20 @@ func (s *Server) ProcessNotification(
 	}
 
 	response, err := s.findAndExecuteHandlerInTarget(ctx, request, &base, db)
-	if response != nil {
-		msg, _ := json.Marshal(response)
-		s.Broadcast(msg)
+	if err != nil {
+		msg, _ = json.Marshal(&Error{
+			Message: "Internal error",
+			Code:    -32603,
+			Data: map[string]string{
+				"Error":  fmt.Sprint(err),
+				"Method": request.Method,
+				"ID":     request.ID,
+			},
+		})
+	} else if response != nil {
+		msg, _ = json.Marshal(response)
 	}
+	s.Broadcast(msg)
 	return err
 }
 
