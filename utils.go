@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 )
 
@@ -16,6 +17,7 @@ func (s *Server) write(conn *net.Conn, msg []byte) {
 	defer s.writeBlocker.Unlock()
 	(*conn).Write(msg)
 	(*conn).Write([]byte("\n"))
+	log.Println("write:", string(msg))
 }
 
 // send takes a JSON-RPC response and sends it thorugh the given conn

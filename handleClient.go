@@ -49,6 +49,7 @@ func (s *Server) handleClient(conn *net.Conn) {
 		if len(raw) == 0 {
 			continue
 		}
+		log.Println("Request:", string(raw))
 		var request Request
 
 		if err := json.Unmarshal(raw, &request); err != nil {
