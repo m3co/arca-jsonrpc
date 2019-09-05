@@ -8,7 +8,6 @@ import (
 // Close takes the listen and close channel and closes them
 func (s *Server) Close() {
 	(*s.listen).Close()
-	s.closeBlocker.Unlock()
 }
 
 // Broadcast sends to all the active connections the given message
@@ -35,7 +34,6 @@ func (s *Server) Start(ready *chan bool) (err error) {
 
 	s.plugBlocker = &sync.Mutex{}
 	s.writeBlocker = &sync.Mutex{}
-	s.closeBlocker = &sync.Mutex{}
 	s.conns = make([]*net.Conn, 0)
 	s.listen = &listen
 	s.registersSource = make(map[string]map[string]RemoteProcedure)
@@ -56,6 +54,5 @@ func (s *Server) Start(ready *chan bool) (err error) {
 	})()
 
 	*ready <- true
-	s.closeBlocker.Lock()
 	return nil
 }
