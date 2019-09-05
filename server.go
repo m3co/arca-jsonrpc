@@ -29,6 +29,7 @@ func (s *Server) BroadcastError(base *Base, response *Error) {
 func (s *Server) Start(ready *chan bool) (err error) {
 	listen, err := net.Listen("tcp", s.Address)
 	if err != nil {
+		*ready <- false
 		return err
 	}
 
