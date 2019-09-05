@@ -25,10 +25,9 @@ func (s *Server) BroadcastError(base *Base, response *Error) {
 }
 
 // Start prepares and launches the json-rpc server
-func (s *Server) Start(ready *chan bool) (err error) {
+func (s *Server) Start() (err error) {
 	listen, err := net.Listen("tcp", s.Address)
 	if err != nil {
-		*ready <- false
 		return err
 	}
 
@@ -53,6 +52,5 @@ func (s *Server) Start(ready *chan bool) (err error) {
 		}
 	})()
 
-	*ready <- true
 	return nil
 }

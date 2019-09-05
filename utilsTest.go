@@ -16,14 +16,8 @@ func startServer() (
 
 func startServerWithAddress(address string) (
 	server *Server, err error) {
-	ready := make(chan bool)
 	server = &Server{Address: address}
-
-	go (func() {
-		err = server.Start(&ready)
-	})()
-
-	<-ready
+	err = server.Start()
 	return
 }
 
