@@ -1,302 +1,114 @@
 package jsonrpc
 
 import (
-	"bufio"
 	"database/sql"
-	"encoding/json"
+	"fmt"
 	"net"
-	"sync"
 	"testing"
 )
 
 func Test_Serve_Start_one_instance__OK(t *testing.T) {
-	address := ":12345"
-	done := make(chan bool)
-	server := Server{Address: address}
-	ready := make(chan bool)
-
-	go (func() {
-		err := server.Start(&ready)
-		if err != nil {
-			t.Error(err)
-			done <- true
-		}
-	})()
-
-	go (func() {
-		<-ready
-
-		_, err := net.Dial("tcp", address)
-		if err != nil {
-			t.Error(err)
-		}
-
-		done <- true
-	})()
-
-	<-done
+	server, _, _ := startServerAndClient(t)
+	server.Close()
 }
 
 func Test_Serve_Start_two_instances__fail(t *testing.T) {
-	address := ":12346"
-	done := make(chan bool)
-	serverExtra := Server{Address: address}
-	readyExtra := make(chan bool)
+	server, errServer := startServer()
+	if errServer != nil {
+		t.Error(errServer)
+		return
+	}
 
-	server := Server{Address: address}
-	ready := make(chan bool)
+	_, err := startServer()
+	if err.Error() != fmt.Sprintf(
+		"listen tcp %s: bind: address already in use", address) {
+		t.Error(err)
+	}
 
-	go (func() {
-		err := serverExtra.Start(&readyExtra)
-		if err != nil {
-			t.Error(err)
-			done <- true
-		}
-	})()
-
-	go (func() {
-		<-readyExtra
-		err := server.Start(&ready)
-		if err == nil {
-			t.Error("Expecting fail")
-		}
-		done <- true
-	})()
-
-	<-done
+	server.Close()
 }
 
 func Test_Serve_Start_then_Close__OK(t *testing.T) {
-	address := ":12347"
-	done := make(chan bool)
-	server := Server{Address: address}
-	ready := make(chan bool)
+	server, _, _ := startServerAndClient(t)
 
-	go (func() {
-		err := server.Start(&ready)
-		if err != nil {
-			t.Error(err)
-			done <- true
-		}
-	})()
-
-	go (func() {
-		<-ready
-
-		if _, err := net.Dial("tcp", address); err != nil {
-			t.Error(err)
-			done <- true
-			return
-		}
-
-		server.Close()
-		if _, err := net.Dial("tcp", address); err == nil {
-			t.Error("Expecting to fail")
-		}
-		done <- true
-	})()
-
-	<-done
+	server.Close()
+	if _, err := net.Dial("tcp", address); err == nil {
+		t.Error("Expecting error")
+	}
 }
 
 func Test_Serve_Send_Incorrect_JSON__fail(t *testing.T) {
-	address := ":12347"
-	done := make(chan bool)
-	server := Server{Address: address}
-	ready := make(chan bool)
+	server, conn, err := startServerAndClient(t)
+	if err != nil {
+		return
+	}
 
-	go (func() {
-		err := server.Start(&ready)
-		if err != nil {
-			t.Error(err)
-			done <- true
-		}
-	})()
-
-	go (func() {
-		<-ready
-		conn, err := net.Dial("tcp", address)
-		if err != nil {
-			t.Error(err)
-		}
-
-		msg := []byte("!json\n")
-		scanner := bufio.NewScanner(conn)
-		conn.Write(msg)
-		for scanner.Scan() {
-			raw := scanner.Bytes()
-			actual := string(raw)
-			expected := `{"Code":-32700,"Message":"Parse error","Data":"invalid character '!' looking for beginning of value"}`
-			if actual != expected {
-				t.Errorf("\nexpect: %s\n!=\nactual: %s", expected, actual)
-			}
-			break
-		}
-
-		done <- true
-	})()
-
-	<-done
-	server.Close()
+	expected := `{"ID":"","Method":"","Context":null,"Result":null,"Error":{"Code":-32700,"Message":"Parse error","Data":"invalid character '!' looking for beginning of value"}}`
+	actual := sendAndReceive(&conn, []byte("!json"))
+	assertExpectedVsActualAndClose(t, expected, actual, server)
 }
 
 func Test_Serve_Send_unknown_method_JSON__OK(t *testing.T) {
-	address := ":12347"
-	done := make(chan bool)
-	server := Server{Address: address}
-	ready := make(chan bool)
+	server, conn, err := startServerAndClient(t)
+	if err != nil {
+		return
+	}
 
-	go (func() {
-		err := server.Start(&ready)
-		if err != nil {
-			t.Error(err)
-			done <- true
-		}
-	})()
+	request := Request{}
+	request.ID = "ID"
+	request.Method = "Unknown Method"
+	request.Context = "Global"
 
-	go (func() {
-		<-ready
-		conn, err := net.Dial("tcp", address)
-		if err != nil {
-			t.Error(err)
-		}
-
-		request := Request{}
-		request.ID = "ID"
-		request.Method = "Unknown Method"
-		request.Context = "Global"
-
-		msg, _ := json.Marshal(request)
-
-		scanner := bufio.NewScanner(conn)
-		conn.Write(msg)
-		conn.Write([]byte("\n"))
-		for scanner.Scan() {
-			raw := scanner.Bytes()
-			actual := string(raw)
-			expected := `{"Code":-32700,"Message":"Method not found","Data":{"ID":"ID","Method":"Unknown Method"}}`
-			if actual != expected {
-				t.Errorf("\nexpect: %s\n!=\nactual: %s", expected, actual)
-			}
-			break
-		}
-
-		done <- true
-	})()
-
-	<-done
-	server.Close()
+	expected := `{"ID":"ID","Method":"Unknown Method","Context":"Global","Result":null,"Error":{"Code":-32700,"Message":"Method not found","Data":{"ID":"ID","Method":"Unknown Method"}}}`
+	actual := sendJSONAndReceive(&conn, &request)
+	assertExpectedVsActualAndClose(t, expected, actual, server)
 }
 
 func Test_Serve_Send_incorrect_context__FAIL(t *testing.T) {
-	address := ":12347"
-	done := make(chan bool)
-	server := Server{Address: address}
-	ready := make(chan bool)
+	server, conn, err := startServerAndClient(t)
+	if err != nil {
+		return
+	}
 
-	go (func() {
-		err := server.Start(&ready)
-		if err != nil {
-			t.Error(err)
-			done <- true
-		}
-	})()
+	request := Request{}
+	request.ID = "ID"
+	request.Method = "Unknown Method"
+	request.Context = 434
 
-	go (func() {
-		<-ready
-		conn, err := net.Dial("tcp", address)
-		if err != nil {
-			t.Error(err)
-		}
-
-		request := Request{}
-		request.ID = "ID"
-		request.Method = "Unknown Method"
-		request.Context = 434
-
-		msg, _ := json.Marshal(request)
-
-		scanner := bufio.NewScanner(conn)
-		conn.Write(msg)
-		conn.Write([]byte("\n"))
-		for scanner.Scan() {
-			raw := scanner.Bytes()
-			actual := string(raw)
-			expected := `{"Code":-32600,"Message":"Invalid Request","Data":{"Error":"Incorrect context 434","ID":"ID","Method":"Unknown Method"}}`
-			if actual != expected {
-				t.Errorf("\nexpect: %s\n!=\nactual: %s", expected, actual)
-			}
-			break
-		}
-
-		done <- true
-	})()
-
-	<-done
-	server.Close()
+	expected := `{"ID":"ID","Method":"Unknown Method","Context":434,"Result":null,"Error":{"Code":-32600,"Message":"Invalid Request","Data":{"Error":"Incorrect context 434","ID":"ID","Method":"Unknown Method"}}}`
+	actual := sendJSONAndReceive(&conn, &request)
+	assertExpectedVsActualAndClose(t, expected, actual, server)
 }
 
 func Test_Serve_Register_One_Ctx_One_Method__OK(t *testing.T) {
-	address := ":12347"
-	done := make(chan bool)
-	server := Server{Address: address}
-	ready := make(chan bool)
+	server, conn, err := startServerAndClient(t)
+	if err != nil {
+		return
+	}
 
-	pang :=
+	pung :=
 		func(request *Request) (result interface{}, err error) {
 			var pong interface{} = "Pung"
 			result = &pong
 			return
 		}
 
-	go (func() {
-		err := server.Start(&ready)
-		if err != nil {
-			t.Error(err)
-			done <- true
-		}
-	})()
+	server.RegisterSource("Pung", "Global", pung)
+	request := Request{}
+	request.ID = "ID"
+	request.Method = "Pung"
+	request.Context = "Global"
 
-	go (func() {
-		<-ready
-		server.RegisterSource("Pang", "Global", pang)
-		conn, err := net.Dial("tcp", address)
-		if err != nil {
-			t.Error(err)
-		}
-
-		request := Request{}
-		request.ID = "ID"
-		request.Method = "Pang"
-		request.Context = "Global"
-
-		msg, _ := json.Marshal(request)
-
-		scanner := bufio.NewScanner(conn)
-		conn.Write(msg)
-		conn.Write([]byte("\n"))
-		for scanner.Scan() {
-			raw := scanner.Bytes()
-			actual := string(raw)
-			expected := `{"ID":"ID","Method":"Pang","Context":"Global","Result":"Pung","Error":null}`
-			if actual != expected {
-				t.Errorf("\nexpect: %s\n!=\nactual: %s", expected, actual)
-			}
-			break
-		}
-
-		done <- true
-	})()
-
-	<-done
-	server.Close()
+	expected := `{"ID":"ID","Method":"Pung","Context":"Global","Result":"Pung","Error":null}`
+	actual := sendJSONAndReceive(&conn, &request)
+	assertExpectedVsActualAndClose(t, expected, actual, server)
 }
 
 func Test_Serve_Register_One_Ctx_Two_Methods__OK(t *testing.T) {
-	address := ":12347"
-	done := make(chan bool)
-	server := Server{Address: address}
-	ready := make(chan bool)
+	server, conn, err := startServerAndClient(t)
+	if err != nil {
+		return
+	}
 
 	ping :=
 		func(request *Request) (result interface{}, err error) {
@@ -312,79 +124,30 @@ func Test_Serve_Register_One_Ctx_Two_Methods__OK(t *testing.T) {
 			return
 		}
 
-	go (func() {
-		err := server.Start(&ready)
-		if err != nil {
-			t.Error(err)
-			done <- true
-		}
-	})()
+	server.RegisterSource("Ping", "Global", ping)
+	server.RegisterSource("Pang", "Global", pang)
 
-	go (func() {
-		<-ready
-		server.RegisterSource("Ping", "Global", ping)
-		server.RegisterSource("Pang", "Global", pang)
-		conn, err := net.Dial("tcp", address)
-		if err != nil {
-			t.Error(err)
-		}
+	var request Request
+	request = Request{}
+	request.ID = "ID"
+	request.Context = "Global"
 
-		func() {
-			request := Request{}
-			request.ID = "ID"
-			request.Method = "Ping"
-			request.Context = "Global"
+	request.Method = "Ping"
+	expectedPing := `{"ID":"ID","Method":"Ping","Context":"Global","Result":"Pong","Error":null}`
+	actualPing := sendJSONAndReceive(&conn, &request)
+	assertExpectedVsActualAndClose(t, expectedPing, actualPing, nil)
 
-			msg, _ := json.Marshal(request)
-
-			scanner := bufio.NewScanner(conn)
-			conn.Write(msg)
-			conn.Write([]byte("\n"))
-			for scanner.Scan() {
-				raw := scanner.Bytes()
-				actual := string(raw)
-				expected := `{"ID":"ID","Method":"Ping","Context":"Global","Result":"Pong","Error":null}`
-				if actual != expected {
-					t.Errorf("\nexpect: %s\n!=\nactual: %s", expected, actual)
-				}
-				break
-			}
-		}()
-
-		func() {
-			request := Request{}
-			request.ID = "ID"
-			request.Method = "Pang"
-			request.Context = "Global"
-
-			msg, _ := json.Marshal(request)
-
-			scanner := bufio.NewScanner(conn)
-			conn.Write(msg)
-			conn.Write([]byte("\n"))
-			for scanner.Scan() {
-				raw := scanner.Bytes()
-				actual := string(raw)
-				expected := `{"ID":"ID","Method":"Pang","Context":"Global","Result":"Pung","Error":null}`
-				if actual != expected {
-					t.Errorf("\nexpect: %s\n!=\nactual: %s", expected, actual)
-				}
-				break
-			}
-		}()
-
-		done <- true
-	})()
-
-	<-done
-	server.Close()
+	request.Method = "Pang"
+	expectedPang := `{"ID":"ID","Method":"Pang","Context":"Global","Result":"Pung","Error":null}`
+	actualPang := sendJSONAndReceive(&conn, &request)
+	assertExpectedVsActualAndClose(t, expectedPang, actualPang, server)
 }
 
 func Test_Serve_Register_One_Complex_Ctx_One_Method__OK(t *testing.T) {
-	address := ":12347"
-	done := make(chan bool)
-	server := Server{Address: address}
-	ready := make(chan bool)
+	server, conn, err := startServerAndClient(t)
+	if err != nil {
+		return
+	}
 
 	pang :=
 		func(request *Request) (result interface{}, err error) {
@@ -392,57 +155,25 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method__OK(t *testing.T) {
 			result = &pong
 			return
 		}
+	complexCtx := map[string]interface{}{"Source": "Global"}
+	server.RegisterSource("Pang", "Global", pang)
 
-	go (func() {
-		err := server.Start(&ready)
-		if err != nil {
-			t.Error(err)
-			done <- true
-		}
-	})()
+	request := Request{}
+	request.ID = "ID"
+	request.Method = "Pang"
+	request.Context = complexCtx
 
-	go (func() {
-		<-ready
+	expected := `{"ID":"ID","Method":"Pang","Context":{"Source":"Global"},"Result":"Pung","Error":null}`
 
-		complexCtx := map[string]interface{}{"Source": "Global"}
-		server.RegisterSource("Pang", "Global", pang)
-		conn, err := net.Dial("tcp", address)
-		if err != nil {
-			t.Error(err)
-		}
-
-		request := Request{}
-		request.ID = "ID"
-		request.Method = "Pang"
-		request.Context = complexCtx
-
-		msg, _ := json.Marshal(request)
-
-		scanner := bufio.NewScanner(conn)
-		conn.Write(msg)
-		conn.Write([]byte("\n"))
-		for scanner.Scan() {
-			raw := scanner.Bytes()
-			actual := string(raw)
-			expected := `{"ID":"ID","Method":"Pang","Context":{"Source":"Global"},"Result":"Pung","Error":null}`
-			if actual != expected {
-				t.Errorf("\nexpect: %s\n!=\nactual: %s", expected, actual)
-			}
-			break
-		}
-
-		done <- true
-	})()
-
-	<-done
-	server.Close()
+	actual := sendJSONAndReceive(&conn, &request)
+	assertExpectedVsActualAndClose(t, expected, actual, server)
 }
 
 func Test_Serve_Register_One_Complex_Ctx_Two_Methods__OK(t *testing.T) {
-	address := ":12347"
-	done := make(chan bool)
-	server := Server{Address: address}
-	ready := make(chan bool)
+	server, conn, err := startServerAndClient(t)
+	if err != nil {
+		return
+	}
 
 	ping :=
 		func(request *Request) (result interface{}, err error) {
@@ -458,222 +189,102 @@ func Test_Serve_Register_One_Complex_Ctx_Two_Methods__OK(t *testing.T) {
 			return
 		}
 
-	go (func() {
-		err := server.Start(&ready)
-		if err != nil {
-			t.Error(err)
-			done <- true
-		}
-	})()
+	complexCtx := map[string]interface{}{"Source": "Global"}
+	server.RegisterSource("Ping", "Global", ping)
+	server.RegisterSource("Pang", "Global", pang)
 
-	go (func() {
-		<-ready
+	var request Request
+	var expected, actual string
+	request = Request{}
+	request.ID = "ID"
+	request.Context = complexCtx
 
-		complexCtx := map[string]interface{}{"Source": "Global"}
-		server.RegisterSource("Ping", "Global", ping)
-		server.RegisterSource("Pang", "Global", pang)
-		conn, err := net.Dial("tcp", address)
-		if err != nil {
-			t.Error(err)
-		}
+	request.Method = "Ping"
+	expected = `{"ID":"ID","Method":"Ping","Context":{"Source":"Global"},"Result":"Pong","Error":null}`
+	actual = sendJSONAndReceive(&conn, &request)
+	assertExpectedVsActualAndClose(t, expected, actual, nil)
 
-		func() {
-			request := Request{
-				Base: Base{
-					ID:      "ID",
-					Method:  "Ping",
-					Context: complexCtx,
-				},
-			}
+	request.Method = "Pang"
+	expected = `{"ID":"ID","Method":"Pang","Context":{"Source":"Global"},"Result":"Pung","Error":null}`
+	actual = sendJSONAndReceive(&conn, &request)
+	assertExpectedVsActualAndClose(t, expected, actual, server)
 
-			msg, _ := json.Marshal(request)
-
-			scanner := bufio.NewScanner(conn)
-			conn.Write(msg)
-			conn.Write([]byte("\n"))
-			for scanner.Scan() {
-				raw := scanner.Bytes()
-				actual := string(raw)
-				expected := `{"ID":"ID","Method":"Ping","Context":{"Source":"Global"},"Result":"Pong","Error":null}`
-				if actual != expected {
-					t.Errorf("\nexpect: %s\n!=\nactual: %s", expected, actual)
-				}
-				break
-			}
-		}()
-
-		func() {
-			request := Request{
-				Base: Base{
-					ID:      "ID",
-					Method:  "Pang",
-					Context: complexCtx,
-				},
-			}
-
-			msg, _ := json.Marshal(request)
-
-			scanner := bufio.NewScanner(conn)
-			conn.Write(msg)
-			conn.Write([]byte("\n"))
-			for scanner.Scan() {
-				raw := scanner.Bytes()
-				actual := string(raw)
-				expected := `{"ID":"ID","Method":"Pang","Context":{"Source":"Global"},"Result":"Pung","Error":null}`
-				if actual != expected {
-					t.Errorf("\nexpect: %s\n!=\nactual: %s", expected, actual)
-				}
-				break
-			}
-		}()
-
-		done <- true
-	})()
-
-	<-done
-	server.Close()
 }
 
 func Test_Serve_connect_disconnect_two_clients__OK(t *testing.T) {
-	address := ":12347"
-	done := make(chan bool)
-	server := Server{Address: address}
-	ready := make(chan bool)
-
-	go (func() {
-		err := server.Start(&ready)
-		if err != nil {
-			t.Error(err)
-			done <- true
-		}
-	})()
-
-	go (func() {
-		<-ready
-
-		conn1, err := net.Dial("tcp", address)
-		if err != nil {
-			t.Error(err)
-		}
-
-		conn2, err := net.Dial("tcp", address)
-		if err != nil {
-			t.Error(err)
-		}
-
-		conn2.Close()
-		conn1.Close()
-
-		done <- true
-	})()
-
-	<-done
-	server.Close()
-}
-
-func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__OK(t *testing.T) {
-	address := ":12347"
-	var w sync.WaitGroup
-	done := make(chan bool)
-	server := Server{Address: address}
-	ready := make(chan bool)
-
-	var ping DBRemoteProcedure = func(db *sql.DB) RemoteProcedure {
-		return func(request *Request) (result interface{}, err error) {
-			var pong interface{} = "Pong"
-			result = &pong
-			return
-		}
+	server, errServer := startServer()
+	if errServer != nil {
+		t.Error(errServer)
+		return
 	}
 
-	go (func() {
-		err := server.Start(&ready)
-		if err != nil {
-			t.Error(err)
-			done <- true
-		}
-	})()
+	conn1, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
 
-	go (func() {
-		<-ready
+	conn2, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
 
-		conn1, err := net.Dial("tcp", address)
-		w.Add(1)
-		if err != nil {
-			t.Error(err)
-		}
+	conn2.Close()
+	conn1.Close()
 
-		conn2, err := net.Dial("tcp", address)
-		w.Add(1)
-		if err != nil {
-			t.Error(err)
-		}
+	server.Close()
+}
+func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__MethodNotFound(t *testing.T) {
+	server, errServer := startServer()
+	if errServer != nil {
+		t.Error(errServer)
+		return
+	}
 
-		conn3, err := net.Dial("tcp", address)
-		w.Add(1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		complexCtx := map[string]interface{}{"Target": "Global"}
-		server.RegisterTarget("Ping", "Global", ping)
-
-		request := Request{
-			Base: Base{
-				ID:      "ID",
-				Method:  "Ping",
-				Context: complexCtx,
-			},
-		}
-
-		server.ProcessNotification(&request, nil)
-
-		func() {
-			scanner := bufio.NewScanner(conn1)
-			for scanner.Scan() {
-				raw := scanner.Bytes()
-				actual := string(raw)
-				expected := `{"ID":"ID","Method":"Ping","Context":{"Target":"Global"},"Result":"Pong","Error":null}`
-				w.Done()
-				if actual != expected {
-					t.Errorf("\nexpect: %s\n!=\nactual: %s", expected, actual)
-				}
-				break
+	ping :=
+		func(db *sql.DB) RemoteProcedure {
+			return func(request *Request) (result interface{}, err error) {
+				var pong interface{} = "Pong"
+				result = &pong
+				return
 			}
-		}()
+		}
 
-		func() {
-			scanner := bufio.NewScanner(conn2)
-			for scanner.Scan() {
-				raw := scanner.Bytes()
-				actual := string(raw)
-				expected := `{"ID":"ID","Method":"Ping","Context":{"Target":"Global"},"Result":"Pong","Error":null}`
-				w.Done()
-				if actual != expected {
-					t.Errorf("\nexpect: %s\n!=\nactual: %s", expected, actual)
-				}
-				break
-			}
-		}()
+	conn1, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
 
-		func() {
-			scanner := bufio.NewScanner(conn3)
-			for scanner.Scan() {
-				raw := scanner.Bytes()
-				actual := string(raw)
-				expected := `{"ID":"ID","Method":"Ping","Context":{"Target":"Global"},"Result":"Pong","Error":null}`
-				w.Done()
-				if actual != expected {
-					t.Errorf("\nexpect: %s\n!=\nactual: %s", expected, actual)
-				}
-				break
-			}
-		}()
+	conn2, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
 
-		w.Wait()
-		done <- true
-	})()
+	conn3, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
 
-	<-done
+	complexCtx := map[string]interface{}{"Target": "Global"}
+	server.RegisterTarget("Ping", "Global", ping)
+
+	request := Request{
+		Base: Base{
+			ID:      "ID",
+			Method:  "Unknown",
+			Context: complexCtx,
+		},
+	}
+
+	server.ProcessNotification(&request, nil)
+
+	response1 := receiveString(&conn1)
+	response2 := receiveString(&conn2)
+	response3 := receiveString(&conn3)
+
+	expected := `{"ID":"ID","Method":"Unknown","Context":{"Target":"Global"},"Result":null,"Error":{"Code":-32603,"Message":"Internal error","Data":{"Error":"Method not found","ID":"ID","Method":"Unknown"}}}`
+	assertExpectedVsActualAndClose(t, expected, response1, nil)
+	assertExpectedVsActualAndClose(t, expected, response2, nil)
+	assertExpectedVsActualAndClose(t, expected, response3, nil)
+
 	server.Close()
 }

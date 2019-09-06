@@ -22,16 +22,16 @@ func (s *Server) write(conn *net.Conn, msg []byte) {
 
 // send takes a JSON-RPC response and sends it thorugh the given conn
 func (s *Server) send(conn *net.Conn, response *Response) {
-	if conn != nil {
-		msg, _ := json.Marshal(response)
-		s.write(conn, msg)
+	if conn == nil {
+		return
 	}
+	msg, _ := json.Marshal(response)
+	s.write(conn, msg)
 }
 
 // send takes a JSON-RPC error and sends it thorugh the given conn
 func (s *Server) sendError(conn *net.Conn, base *Base, err *Error) {
 	if conn == nil {
-		s.BroadcastError(base, err)
 		return
 	}
 	response := &Response{
