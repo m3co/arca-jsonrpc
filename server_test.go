@@ -398,3 +398,113 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__Broadca
 
 	server.Close()
 }
+
+func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__InternalError(t *testing.T) {
+	server, errServer := startServer()
+	if errServer != nil {
+		t.Error(errServer)
+		return
+	}
+
+	ping :=
+		func(db *sql.DB) RemoteProcedure {
+			return func(request *Request) (result interface{}, err error) {
+				i := result.(int) // I want to crash it
+				fmt.Println(i)
+				return
+			}
+		}
+
+	conn1, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
+
+	conn2, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
+
+	conn3, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
+
+	complexCtx := map[string]interface{}{"Target": "Global"}
+	server.RegisterTarget("Ping", "Global", ping)
+
+	request := Request{
+		Base: Base{
+			ID:      "ID",
+			Method:  "Ping",
+			Context: complexCtx,
+		},
+	}
+
+	server.ProcessNotification(&request, nil)
+
+	response1 := receiveString(&conn1)
+	response2 := receiveString(&conn2)
+	response3 := receiveString(&conn3)
+
+	expected := `{"ID":"ID","Method":"Ping","Context":{"Target":"Global"},"Result":null,"Error":{"Code":-32603,"Message":"Internal error","Data":{"Error":"interface conversion: interface {} is nil, not int","ID":"ID","Method":"Ping"}}}`
+	assertExpectedVsActualAndClose(t, expected, response1, nil)
+	assertExpectedVsActualAndClose(t, expected, response2, nil)
+	assertExpectedVsActualAndClose(t, expected, response3, nil)
+
+	server.Close()
+}
+
+func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__ContextError(t *testing.T) {
+	server, errServer := startServer()
+	if errServer != nil {
+		t.Error(errServer)
+		return
+	}
+
+	ping :=
+		func(db *sql.DB) RemoteProcedure {
+			return func(request *Request) (result interface{}, err error) {
+				return
+			}
+		}
+
+	conn1, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
+
+	conn2, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
+
+	conn3, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
+
+	complexCtx := map[string]interface{}{"TargetFail": "Global"}
+	server.RegisterTarget("Ping", "Global", ping)
+
+	request := Request{
+		Base: Base{
+			ID:      "ID",
+			Method:  "Ping",
+			Context: complexCtx,
+		},
+	}
+
+	server.ProcessNotification(&request, nil)
+
+	response1 := receiveString(&conn1)
+	response2 := receiveString(&conn2)
+	response3 := receiveString(&conn3)
+
+	expected := `{"ID":"ID","Method":"Ping","Context":{"TargetFail":"Global"},"Result":null,"Error":{"Code":-32603,"Message":"Internal error","Data":{"Error":"Incorrect context map[TargetFail:Global]","ID":"ID","Method":"Ping"}}}`
+	assertExpectedVsActualAndClose(t, expected, response1, nil)
+	assertExpectedVsActualAndClose(t, expected, response2, nil)
+	assertExpectedVsActualAndClose(t, expected, response3, nil)
+
+	server.Close()
+}
