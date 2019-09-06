@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -29,7 +30,7 @@ func (s *Server) ProcessNotification(
 		})
 	}
 
-	_, err = s.findAndExecuteHandlerInTarget(ctx, request, base, db)
+	response, err := s.findAndExecuteHandlerInTarget(ctx, request, base, db)
 	if err != nil {
 		s.BroadcastError(base, &Error{
 			Message: "Internal error",
@@ -40,6 +41,10 @@ func (s *Server) ProcessNotification(
 				"ID":     request.ID,
 			},
 		})
+	}
+	if response != nil {
+		msg, _ := json.Marshal(response)
+		s.Broadcast(msg)
 	}
 }
 

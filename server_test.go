@@ -233,6 +233,7 @@ func Test_Serve_connect_disconnect_two_clients__OK(t *testing.T) {
 
 	server.Close()
 }
+
 func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__MethodNotFound(t *testing.T) {
 	server, errServer := startServer()
 	if errServer != nil {
@@ -243,8 +244,6 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__MethodN
 	ping :=
 		func(db *sql.DB) RemoteProcedure {
 			return func(request *Request) (result interface{}, err error) {
-				var pong interface{} = "Pong"
-				result = &pong
 				return
 			}
 		}
@@ -282,6 +281,117 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__MethodN
 	response3 := receiveString(&conn3)
 
 	expected := `{"ID":"ID","Method":"Unknown","Context":{"Target":"Global"},"Result":null,"Error":{"Code":-32603,"Message":"Internal error","Data":{"Error":"Method not found","ID":"ID","Method":"Unknown"}}}`
+	assertExpectedVsActualAndClose(t, expected, response1, nil)
+	assertExpectedVsActualAndClose(t, expected, response2, nil)
+	assertExpectedVsActualAndClose(t, expected, response3, nil)
+
+	server.Close()
+}
+
+func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__OK(t *testing.T) {
+	server, errServer := startServer()
+	if errServer != nil {
+		t.Error(errServer)
+		return
+	}
+
+	ping :=
+		func(db *sql.DB) RemoteProcedure {
+			return func(request *Request) (result interface{}, err error) {
+				var pong interface{} = "Pong"
+				result = &pong
+				return
+			}
+		}
+
+	conn1, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
+
+	conn2, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
+
+	conn3, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
+
+	complexCtx := map[string]interface{}{"Target": "Global"}
+	server.RegisterTarget("Ping", "Global", ping)
+
+	request := Request{
+		Base: Base{
+			ID:      "ID",
+			Method:  "Ping",
+			Context: complexCtx,
+		},
+	}
+
+	server.ProcessNotification(&request, nil)
+
+	response1 := receiveString(&conn1)
+	response2 := receiveString(&conn2)
+	response3 := receiveString(&conn3)
+
+	expected := `{"ID":"ID","Method":"Ping","Context":{"Target":"Global"},"Result":"Pong","Error":null}`
+	assertExpectedVsActualAndClose(t, expected, response1, nil)
+	assertExpectedVsActualAndClose(t, expected, response2, nil)
+	assertExpectedVsActualAndClose(t, expected, response3, nil)
+
+	server.Close()
+}
+
+func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__BroadcastOK(t *testing.T) {
+	server, errServer := startServer()
+	if errServer != nil {
+		t.Error(errServer)
+		return
+	}
+
+	ping :=
+		func(db *sql.DB) RemoteProcedure {
+			return func(request *Request) (result interface{}, err error) {
+				server.Broadcast([]byte(`{"ID":"ID","Method":"Ping","Context":{"Target":"Global"},"Result":"Pong-Broadcast","Error":null}`))
+				return
+			}
+		}
+
+	conn1, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
+
+	conn2, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
+
+	conn3, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Error(err)
+	}
+
+	complexCtx := map[string]interface{}{"Target": "Global"}
+	server.RegisterTarget("Ping", "Global", ping)
+
+	request := Request{
+		Base: Base{
+			ID:      "ID",
+			Method:  "Ping",
+			Context: complexCtx,
+		},
+	}
+
+	server.ProcessNotification(&request, nil)
+
+	response1 := receiveString(&conn1)
+	response2 := receiveString(&conn2)
+	response3 := receiveString(&conn3)
+
+	expected := `{"ID":"ID","Method":"Ping","Context":{"Target":"Global"},"Result":"Pong-Broadcast","Error":null}`
 	assertExpectedVsActualAndClose(t, expected, response1, nil)
 	assertExpectedVsActualAndClose(t, expected, response2, nil)
 	assertExpectedVsActualAndClose(t, expected, response3, nil)
