@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"testing"
+	"time"
 )
 
 func Test_Serve_Start_one_instance__OK(t *testing.T) {
@@ -287,6 +288,8 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__MethodN
 		t.Error(err)
 	}
 
+	time.Sleep(100 * time.Millisecond)
+
 	complexCtx := map[string]interface{}{"Target": "Global"}
 	server.RegisterTarget("Ping", "Global", ping)
 
@@ -343,6 +346,8 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__OK(t *t
 		t.Error(err)
 	}
 
+	time.Sleep(100 * time.Millisecond)
+
 	complexCtx := map[string]interface{}{"Target": "Global"}
 	server.RegisterTarget("Ping", "Global", ping)
 
@@ -397,6 +402,8 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__Broadca
 	if err != nil {
 		t.Error(err)
 	}
+
+	time.Sleep(100 * time.Millisecond)
 
 	complexCtx := map[string]interface{}{"Target": "Global"}
 	server.RegisterTarget("Ping", "Global", ping)
@@ -454,6 +461,8 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__Interna
 		t.Error(err)
 	}
 
+	time.Sleep(100 * time.Millisecond)
+
 	complexCtx := map[string]interface{}{"Target": "Global"}
 	server.RegisterTarget("Ping", "Global", ping)
 
@@ -507,6 +516,8 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__Context
 	if err != nil {
 		t.Error(err)
 	}
+
+	time.Sleep(100 * time.Millisecond)
 
 	complexCtx := map[string]interface{}{"TargetFail": "Global"}
 	server.RegisterTarget("Ping", "Global", ping)
