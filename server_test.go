@@ -80,6 +80,30 @@ func Test_Serve_Send_incorrect_context__FAIL(t *testing.T) {
 	assertExpectedVsActualAndClose(t, expected, actual, server)
 }
 
+func Test_Serve_Register_One_Ctx_One_Method__InternalError(t *testing.T) {
+	server, conn, err := startServerAndClient(t)
+	if err != nil {
+		return
+	}
+
+	pung :=
+		func(request *Request) (result interface{}, err error) {
+			i := result.(int)
+			fmt.Println(i)
+			return
+		}
+
+	server.RegisterSource("Pung", "Global", pung)
+	request := Request{}
+	request.ID = "ID"
+	request.Method = "Pung"
+	request.Context = "Global"
+
+	expected := `{"ID":"ID","Method":"Pung","Context":"Global","Result":null,"Error":{"Code":-32603,"Message":"Internal error","Data":{"Error":"interface conversion: interface {} is nil, not int","ID":"ID","Method":"Pung"}}}`
+	actual := sendJSONAndReceive(&conn, &request)
+	assertExpectedVsActualAndClose(t, expected, actual, server)
+}
+
 func Test_Serve_Register_One_Ctx_One_Method__OK(t *testing.T) {
 	server, conn, err := startServerAndClient(t)
 	if err != nil {
