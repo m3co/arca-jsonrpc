@@ -440,9 +440,7 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__Interna
 	ping :=
 		func(db *sql.DB) RemoteProcedure {
 			return func(request *Request) (result interface{}, err error) {
-				i := result.(int) // I want to crash it
-				fmt.Println(i)
-				return
+				panic("Whatever")
 			}
 		}
 
@@ -480,7 +478,7 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__Interna
 	response2 := receiveString(&conn2)
 	response3 := receiveString(&conn3)
 
-	expected := `{"ID":"ID","Method":"Ping","Context":{"Target":"Global"},"Result":null,"Error":{"Code":-32603,"Message":"Internal error","Data":{"Error":"interface conversion: interface {} is nil, not int","ID":"ID","Method":"Ping"}}}`
+	expected := `{"ID":"ID","Method":"Ping","Context":{"Target":"Global"},"Result":null,"Error":{"Code":-32603,"Message":"Internal error","Data":{"Error":"Whatever","ID":"ID","Method":"Ping"}}}`
 	assertExpectedVsActualAndClose(t, expected, response1, nil)
 	assertExpectedVsActualAndClose(t, expected, response2, nil)
 	assertExpectedVsActualAndClose(t, expected, response3, nil)
