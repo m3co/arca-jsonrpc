@@ -543,3 +543,7 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__Context
 
 	server.Close()
 }
+
+func Test_Failme(t *testing.T) {
+	t.Fail()
+}
