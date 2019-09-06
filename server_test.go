@@ -544,6 +544,27 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__Context
 	server.Close()
 }
 
-func Test_Failme(t *testing.T) {
-	t.Fail()
+func Test_Serve_Send_CR__OK(t *testing.T) {
+	server, conn, err := startServerAndClient(t)
+	if err != nil {
+		return
+	}
+
+	pung :=
+		func(request *Request) (result interface{}, err error) {
+			var pong interface{} = "Pung"
+			result = &pong
+			return
+		}
+
+	server.RegisterSource("Pung", "Global", pung)
+	request := Request{}
+	request.ID = "ID"
+	request.Method = "Pung"
+	request.Context = "Global"
+
+	expected := `{"ID":"ID","Method":"Pung","Context":"Global","Result":"Pung","Error":null}`
+	send(&conn, []byte("\n"))
+	actual := sendJSONAndReceive(&conn, &request)
+	assertExpectedVsActualAndClose(t, expected, actual, server)
 }

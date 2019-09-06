@@ -42,9 +42,13 @@ func sendJSONAndReceive(conn *net.Conn, request *Request) string {
 	return sendAndReceive(conn, msg)
 }
 
-func sendAndReceive(conn *net.Conn, request []byte) (response string) {
+func send(conn *net.Conn, request []byte) {
 	(*conn).Write(request)
 	(*conn).Write([]byte("\n"))
+}
+
+func sendAndReceive(conn *net.Conn, request []byte) (response string) {
+	send(conn, request)
 	return receiveString(conn)
 }
 
