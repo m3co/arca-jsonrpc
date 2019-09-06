@@ -43,9 +43,13 @@ func sendJSONAndReceive(conn *net.Conn, request *Request) string {
 }
 
 func sendAndReceive(conn *net.Conn, request []byte) (response string) {
-	scanner := bufio.NewScanner(*conn)
 	(*conn).Write(request)
 	(*conn).Write([]byte("\n"))
+	return receiveString(conn)
+}
+
+func receiveString(conn *net.Conn) (response string) {
+	scanner := bufio.NewScanner(*conn)
 	for scanner.Scan() {
 		raw := scanner.Bytes()
 		response = string(raw)
