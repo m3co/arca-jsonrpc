@@ -12,16 +12,16 @@ import (
 var errMethodNotMatch = errors.New("Method not found")
 
 // write sends the given message thorugh the given conn
-func (s *Server) write(conn *net.Conn, msg []byte) {
+func (s *Server) write(conn net.Conn, msg []byte) {
 	s.writeBlocker.Lock()
 	defer s.writeBlocker.Unlock()
-	(*conn).Write(msg)
-	(*conn).Write([]byte("\n"))
+	conn.Write(msg)
+	conn.Write([]byte("\n"))
 	log.Println("write:", string(msg))
 }
 
 // send takes a JSON-RPC response and sends it thorugh the given conn
-func (s *Server) send(conn *net.Conn, response *Response) {
+func (s *Server) send(conn net.Conn, response *Response) {
 	if conn == nil {
 		return
 	}
@@ -30,7 +30,7 @@ func (s *Server) send(conn *net.Conn, response *Response) {
 }
 
 // send takes a JSON-RPC error and sends it thorugh the given conn
-func (s *Server) sendError(conn *net.Conn, base *Base, err *Error) {
+func (s *Server) sendError(conn net.Conn, base *Base, err *Error) {
 	if conn == nil {
 		return
 	}
@@ -43,14 +43,14 @@ func (s *Server) sendError(conn *net.Conn, base *Base, err *Error) {
 }
 
 // plug appends a conn in the array of connections. Necessary for broadcasting
-func (s *Server) plug(conn *net.Conn) {
+func (s *Server) plug(conn net.Conn) {
 	s.plugBlocker.Lock()
 	defer s.plugBlocker.Unlock()
 	s.conns = append(s.conns, conn)
 }
 
 // unplug drops a conn in the array of connections. Necessary for broadcasting
-func (s *Server) unplug(conn *net.Conn) {
+func (s *Server) unplug(conn net.Conn) {
 	s.plugBlocker.Lock()
 	defer s.plugBlocker.Unlock()
 	for i, value := range s.conns {

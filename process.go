@@ -52,7 +52,7 @@ func (s *Server) ProcessNotification(
 // matches a handler, calls that handler with the request as parametr and that
 // result sends it through the given conn
 func (s *Server) ProcessRequest(
-	request *Request, conn *net.Conn) {
+	request *Request, conn net.Conn) {
 
 	base := &Base{
 		ID:      request.ID,

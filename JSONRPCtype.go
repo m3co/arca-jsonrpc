@@ -46,8 +46,8 @@ type Server struct {
 	Address         string
 	plugBlocker     *sync.Mutex
 	writeBlocker    *sync.Mutex
-	conns           []*net.Conn
-	listen          *net.Listener
+	conns           []net.Conn
+	listen          net.Listener
 	registersSource map[string]map[string]RemoteProcedure
 	registersTarget map[string]map[string]DBRemoteProcedure
 }

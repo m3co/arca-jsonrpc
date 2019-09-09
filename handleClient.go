@@ -40,10 +40,10 @@ func (s *Server) RegisterTarget(
 
 // handleClient listens for any messages from conn and process it by using
 // the method ProcessRequest
-func (s *Server) handleClient(conn *net.Conn) {
-	defer (*conn).Close()
+func (s *Server) handleClient(conn net.Conn) {
+	defer conn.Close()
 
-	scanner := bufio.NewScanner(*conn)
+	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
 		raw := scanner.Bytes()
 		if len(raw) == 0 {
@@ -55,7 +55,7 @@ func (s *Server) handleClient(conn *net.Conn) {
 		if err := json.Unmarshal(raw, &request); err != nil {
 			log.Println("handleClient", err)
 			base := &Base{}
-			(*s).sendError(conn, base, &Error{
+			s.sendError(conn, base, &Error{
 				Message: "Parse error",
 				Code:    -32700,
 				Data:    fmt.Sprint(err),
