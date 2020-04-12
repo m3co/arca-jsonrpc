@@ -30,7 +30,7 @@ type Request struct {
 type Response struct {
 	Base
 	Result interface{}
-	Error  interface{}
+	Error  *Error
 }
 
 // RemoteProcedure represents the function-handler that matches a given request
