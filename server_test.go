@@ -60,7 +60,7 @@ func Test_Serve_Send_unknown_method_JSON__OK(t *testing.T) {
 	request.Method = "Unknown Method"
 	request.Context = "Global"
 
-	expected := `{"ID":"ID","Method":"Unknown Method","Context":"Global","Result":null,"Error":{"Code":-32700,"Message":"Method not found","Data":{"ID":"ID","Method":"Unknown Method"}}}`
+	expected := `{"ID":"ID","Method":"Unknown Method","Context":"Global","Result":null,"Error":{"Code":-32601,"Message":"Method not found","Data":{"ID":"ID","Method":"Unknown Method"}}}`
 	actual := sendJSONAndReceive(&conn, &request)
 	assertExpectedVsActualAndClose(t, expected, actual, server)
 }

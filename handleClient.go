@@ -54,11 +54,11 @@ func (s *Server) handleClient(conn net.Conn) {
 		if err := json.Unmarshal(raw, &request); err != nil {
 			//log.Println("handleClient:Unmarshal", err)
 			base := &Base{}
-			if err := s.sendError(conn, base, &Error{
+			if err1 := s.sendError(conn, base, &Error{
 				Message: "Parse error",
 				Code:    -32700,
 				Data:    fmt.Sprint(err),
-			}); err != nil {
+			}); err1 != nil {
 				//log.Println("handleClient:Unmarshal:sendError", err)
 			}
 			continue

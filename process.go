@@ -66,7 +66,7 @@ func (s *Server) ProcessRequest(
 	ctx, err := getFieldFromContext(src, request.Context)
 	if err != nil {
 		//log.Println("ProcessRequest:getFieldFromContext", err)
-		if err := s.sendError(conn, base, &Error{
+		if err1 := s.sendError(conn, base, &Error{
 			Message: "Invalid Request",
 			Code:    -32600,
 			Data: map[string]string{
@@ -74,11 +74,28 @@ func (s *Server) ProcessRequest(
 				"ID":     request.ID,
 				"Error":  fmt.Sprint(err),
 			},
-		}); err != nil {
+		}); err1 != nil {
 			//log.Println("ProcessRequest:getFieldFromContext:sendError", err)
 		}
 		return
 	}
+
+	/*
+		if request.Params == nil {
+			if err1 := s.sendError(conn, base, &Error{
+				Message: "Invalid params",
+				Code:    -32602,
+				Data: map[string]string{
+					"Method": request.Method,
+					"ID":     request.ID,
+					"Error":  "Params in request not found",
+				},
+			}); err1 != nil {
+				//log.Println("ProcessRequest:getFieldFromContext:Params", err)
+			}
+			return
+		}
+	*/
 
 	response, err := s.findAndExecuteHandlerInSource(ctx, request, base)
 	if err != nil {
@@ -86,7 +103,7 @@ func (s *Server) ProcessRequest(
 		if err == errMethodNotMatch {
 			if err := s.sendError(conn, base, &Error{
 				Message: "Method not found",
-				Code:    -32700,
+				Code:    -32601,
 				Data: map[string]string{
 					"Method": request.Method,
 					"ID":     request.ID,
