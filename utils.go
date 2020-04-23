@@ -5,41 +5,57 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 )
 
-var errMethodNotMatch = errors.New("Method not found")
+var (
+	errMethodNotMatch  = errors.New("Method not found")
+	errConnNilWhenSend = errors.New("Cannot send response if conn is nil")
+)
 
 // write sends the given message thorugh the given conn
-func (s *Server) write(conn net.Conn, msg []byte) {
+func (s *Server) write(conn net.Conn, msg []byte) error {
 	s.writeBlocker.Lock()
 	defer s.writeBlocker.Unlock()
-	conn.Write(msg)
-	conn.Write([]byte("\n"))
-	log.Println("write:", string(msg))
+	if _, err := conn.Write(msg); err != nil {
+		return err
+	}
+	if _, err := conn.Write([]byte("\n")); err != nil {
+		return err
+	}
+	return nil
 }
 
 // send takes a JSON-RPC response and sends it thorugh the given conn
-func (s *Server) send(conn net.Conn, response *Response) {
+func (s *Server) send(conn net.Conn, response *Response) error {
+	var err error
+	var msg []byte
 	if conn == nil {
-		return
+		return errConnNilWhenSend
 	}
-	msg, _ := json.Marshal(response)
-	s.write(conn, msg)
+	msg, err = json.Marshal(response)
+	if err != nil {
+		return err
+	}
+	return s.write(conn, msg)
 }
 
 // send takes a JSON-RPC error and sends it thorugh the given conn
-func (s *Server) sendError(conn net.Conn, base *Base, err *Error) {
+func (s *Server) sendError(conn net.Conn, base *Base, err *Error) error {
+	var err1 error
+	var msg []byte
 	if conn == nil {
-		return
+		return errConnNilWhenSend
 	}
 	response := &Response{
 		Base:  *base,
 		Error: err,
 	}
-	msg, _ := json.Marshal(response)
-	s.write(conn, msg)
+	msg, err1 = json.Marshal(response)
+	if err1 != nil {
+		return err1
+	}
+	return s.write(conn, msg)
 }
 
 // plug appends a conn in the array of connections. Necessary for broadcasting

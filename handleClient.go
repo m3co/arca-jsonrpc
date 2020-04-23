@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 )
 
@@ -49,21 +48,23 @@ func (s *Server) handleClient(conn net.Conn) {
 		if len(raw) == 0 {
 			continue
 		}
-		log.Println("Request:", string(raw))
+		//log.Println("Request:", string(raw))
 		var request Request
 
 		if err := json.Unmarshal(raw, &request); err != nil {
-			log.Println("handleClient", err)
+			//log.Println("handleClient:Unmarshal", err)
 			base := &Base{}
-			s.sendError(conn, base, &Error{
+			if err := s.sendError(conn, base, &Error{
 				Message: "Parse error",
 				Code:    -32700,
 				Data:    fmt.Sprint(err),
-			})
+			}); err != nil {
+				//log.Println("handleClient:Unmarshal:sendError", err)
+			}
 			continue
 		}
 
 		s.ProcessRequest(&request, conn)
 	}
-	log.Println("disconnected")
+	//log.Println("disconnected")
 }

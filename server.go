@@ -13,14 +13,18 @@ func (s *Server) Close() {
 // Broadcast sends to all the active connections the given message
 func (s *Server) Broadcast(msg []byte) {
 	for _, conn := range s.conns {
-		s.write(conn, msg)
+		if err := s.write(conn, msg); err != nil {
+			//log.Println("Broadcast", err)
+		}
 	}
 }
 
 // BroadcastError takes a JSON-RPC error and sends it to all connections
 func (s *Server) BroadcastError(base *Base, response *Error) {
 	for _, conn := range s.conns {
-		s.sendError(conn, base, response)
+		if err := s.sendError(conn, base, response); err != nil {
+			//log.Println("BroadcastError", err)
+		}
 	}
 }
 

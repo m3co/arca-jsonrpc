@@ -7,4 +7,4 @@ WORKDIR /go/src/github.com/m3co/arca-jsonrpc/
 
 COPY . .
 
-CMD ["go", "test"]
+CMD ["go", "test", "-v"]

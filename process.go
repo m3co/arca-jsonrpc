@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 )
 
@@ -66,8 +65,8 @@ func (s *Server) ProcessRequest(
 	}
 	ctx, err := getFieldFromContext(src, request.Context)
 	if err != nil {
-		log.Println("ProcessRequest", err)
-		s.sendError(conn, base, &Error{
+		//log.Println("ProcessRequest:getFieldFromContext", err)
+		if err := s.sendError(conn, base, &Error{
 			Message: "Invalid Request",
 			Code:    -32600,
 			Data: map[string]string{
@@ -75,24 +74,28 @@ func (s *Server) ProcessRequest(
 				"ID":     request.ID,
 				"Error":  fmt.Sprint(err),
 			},
-		})
+		}); err != nil {
+			//log.Println("ProcessRequest:getFieldFromContext:sendError", err)
+		}
 		return
 	}
 
 	response, err := s.findAndExecuteHandlerInSource(ctx, request, base)
 	if err != nil {
-		log.Println("ProcessRequest", err)
+		//log.Println("ProcessRequest:findAndExecuteHandlerInSource", err)
 		if err == errMethodNotMatch {
-			s.sendError(conn, base, &Error{
+			if err := s.sendError(conn, base, &Error{
 				Message: "Method not found",
 				Code:    -32700,
 				Data: map[string]string{
 					"Method": request.Method,
 					"ID":     request.ID,
 				},
-			})
+			}); err != nil {
+				//log.Println("ProcessRequest:findAndExecuteHandlerInSource:errMethodNotMatch:sendError", err)
+			}
 		} else {
-			s.sendError(conn, base, &Error{
+			if err := s.sendError(conn, base, &Error{
 				Message: "Internal error",
 				Code:    -32603,
 				Data: map[string]string{
@@ -100,9 +103,13 @@ func (s *Server) ProcessRequest(
 					"Method": request.Method,
 					"ID":     request.ID,
 				},
-			})
+			}); err != nil {
+				//log.Println("ProcessRequest:findAndExecuteHandlerInSource:sendError", err)
+			}
 		}
 	} else if response != nil {
-		s.send(conn, response)
+		if err := s.send(conn, response); err != nil {
+			//log.Println("ProcessRequest:response:send", err)
+		}
 	}
 }
