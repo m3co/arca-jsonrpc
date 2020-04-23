@@ -6,8 +6,8 @@ import (
 )
 
 // Close takes the listen and close channel and closes them
-func (s *Server) Close() {
-	s.listen.Close()
+func (s *Server) Close() error {
+	return s.listen.Close()
 }
 
 // Broadcast sends to all the active connections the given message
@@ -32,6 +32,7 @@ func (s *Server) startListen(listen net.Listener) {
 	for {
 		conn, err := listen.Accept()
 		if err != nil {
+			// aqui hay un error en potencia
 			return
 		}
 		s.plug(conn)
