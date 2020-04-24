@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"net"
 	"testing"
@@ -315,7 +316,7 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__MethodN
 	server.Close()
 }
 
-func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__OK(t *testing.T) {
+func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__BroadcastErrorOK(t *testing.T) {
 	server, errServer := startServer()
 	if errServer != nil {
 		t.Error(errServer)
@@ -327,6 +328,7 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__OK(t *t
 			return func(request *Request) (result interface{}, err error) {
 				var pong interface{} = "Pong"
 				result = &pong
+				err = errors.New("something went wrong")
 				return
 			}
 		}
@@ -365,7 +367,7 @@ func Test_Serve_Register_One_Complex_Ctx_One_Method_ProcessNotification__OK(t *t
 	response2 := receiveString(&conn2)
 	response3 := receiveString(&conn3)
 
-	expected := `{"ID":"ID","Method":"Ping","Context":{"Target":"Global"},"Result":"Pong","Error":null}`
+	expected := `{"ID":"ID","Method":"Ping","Context":{"Target":"Global"},"Result":null,"Error":{"Code":-32603,"Message":"Internal error","Data":{"Error":"something went wrong","ID":"ID","Method":"Ping"}}}`
 	assertExpectedVsActualAndClose(t, expected, response1, nil)
 	assertExpectedVsActualAndClose(t, expected, response2, nil)
 	assertExpectedVsActualAndClose(t, expected, response3, nil)

@@ -2,7 +2,6 @@ package jsonrpc
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net"
 )
@@ -42,8 +41,17 @@ func (s *Server) ProcessNotification(
 		})
 	}
 	if response != nil {
-		msg, _ := json.Marshal(response)
-		s.Broadcast(msg)
+		if response.Error != nil {
+			s.BroadcastError(base, &Error{
+				Message: "Internal error",
+				Code:    -32603,
+				Data: map[string]string{
+					"Error":  fmt.Sprint(response.Error),
+					"Method": request.Method,
+					"ID":     request.ID,
+				},
+			})
+		}
 	}
 }
 
